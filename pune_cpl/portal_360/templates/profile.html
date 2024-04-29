@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile | {{ DASHBOARD_NAME }}{% endblock %}
+
+{% block stylesheets %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/profileStyle.css' %}" />
+{% endblock %}
+
+{% block navigation %}
+    <div class="top-bar-menu-item-div" id="menu-home">
+      <a href="{% url 'home' %}" class="top-bar-menu-item">Home</a>
+    </div>
+    <div class="top-bar-menu-item-div active" id="menu-applications">
+      <a href="{% url 'profile' %}" class="top-bar-menu-item" data-target="applicationsContent">Profile</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+  <div id="waterBillingSystemContent" class="content-container" style="display: flex; justify-content: center;">
+      <div class="container mt-4" style="flex-direction: column;">
+          <h2>User Profile</h2>
+          <form id="profileForm" action="{% url 'profile' %}" method="post" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; padding: 20px;">
+              {% csrf_token %}
+              {{ form.non_field_errors }}
+              {% for field in form %}
+                  <div class="form-group">
+                      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                      {% if field.field.widget.input_type == 'select' %}
+                          {{ field }}
+                      {% else %}
+                          {# prettier-ignore #}
+                          <input type="{{ field.field.widget.input_type }}"
+                              name="{{ field.name }}"
+                              {# prettier-ignore #}
+                              value="{% if field.name == 'dob' %}{{ field.value|date:'Y-m-d' }}{% else %}{{ field.value }}{% endif %}"
+                              id="{{ field.id_for_label }}"
+                              class="form-control"
+                              readonly />
+                      {% endif %}
+                      {% if field.errors %}
+                          {% for error in field.errors %}
+                              <div class="error">{{ error }}</div>
+                          {% endfor %}
+                      {% endif %}
+                  </div>
+              {% endfor %}
+              <div class="button-container">
+                  <button type="button" id="editButton" class="btn btn-primary">Edit</button>
+                  <button type="submit" id="saveButton" class="btn btn-success" style="display: none;">Save</button>
+                  <button type="button" id="cancelButton" class="btn btn-danger" style="display: none;">Cancel</button>
+              </div>
+          </form>
+      </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.3.2/html2canvas.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        document.getElementById('editButton').addEventListener('click', function () {
+            document.querySelectorAll('#profileForm input, #profileForm select').forEach(function (element) {
+                element.removeAttribute('readonly');
+                element.removeAttribute('disabled');
+            });
+            document.getElementById('editButton').style.display = 'none';
+            document.getElementById('saveButton').style.display = 'inline-block';
+            document.getElementById('cancelButton').style.display = 'inline-block';
+        });
+        
+        document.getElementById('cancelButton').addEventListener('click', function () {
+            document.querySelectorAll('#profileForm input, #profileForm select').forEach(function (element) {
+                element.setAttribute('readonly', true);
+                element.setAttribute('disabled', true);
+            });
+            document.getElementById('editButton').style.display = 'inline-block';
+            document.getElementById('saveButton').style.display = 'none';
+            document.getElementById('cancelButton').style.display = 'none';
+            document.getElementById('profileForm').reset();
+        });
+    </script>
+{% endblock %}

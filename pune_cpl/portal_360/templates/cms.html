@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Complaint Management System | {{ DASHBOARD_NAME }}
+{% endblock %}
+
+{% block stylesheets %}
+  {% load static %}
+  {% load custom_filters %}
+  <link rel="stylesheet" href="{% static 'css/cmsStyle.css' %}" />
+{% endblock %}
+
+{% block navigation %}
+  <div class="top-bar-menu-item-div" id="menu-home">
+    <a href="{% url 'home' %}" class="top-bar-menu-item">Home</a>
+  </div>
+  <div class="top-bar-menu-item-div active" id="menu-applications">
+    <a href="{% url 'profile' %}" class="top-bar-menu-item" data-target="applicationsContent">Complaint Management System</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="cmsContent" class="content-container">
+    <div class="subheading">
+      <div class="text-container active" id="overview-header" data-target="overview">
+        <h3>OVERVIEW</h3>
+        <div class="underline"></div>
+      </div>
+      <div class="text-container" id="my-complaints-header" data-target="my-complaints">
+        <h3>MY COMPLAINTS</h3>
+        <div class="underline"></div>
+      </div>
+      <div class="text-container" id="create-complaint-header" data-target="create-complaint">
+        <h3>LODGE A COMPLAINT</h3>
+        <div class="underline"></div>
+      </div>
+    </div>
+    <div id="overview" class="content-section active">
+      <div class="container">
+        <div class="box-card" style="background-color: rgba(255, 255, 153, 1);">
+          <span class="box-card-metric">{{ all_complaints }}</span>
+          <div class="box-card-label">
+            <p>All Complaints</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(153, 255, 153, 1);">
+          <span class="box-card-metric">{{ resolved_complaints }}</span>
+          <div class="box-card-label">
+            <p>Resolved Complaints</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(255, 153, 153, 1);">
+          <span class="box-card-metric">{{ rejected_complaints }}</span>
+          <div class="box-card-label">
+            <p>Rejected Complaints</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(153, 204, 255, 1);">
+          <span class="box-card-metric">{{ pending_complaints }}</span>
+          <div class="box-card-label">
+            <p>Pending Complaints</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="my-complaints" class="content-section active" style="display: none;">
+      <div class="container">
+        <select id="status-filter">
+          <option value="All">All</option>
+          <option value="Pending">Pending</option>
+          <option value="Closed">Closed</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <div class="property-box">
+          <div class="scrollable-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>User</th>
+                  <th>Registration Date</th>
+                  <th>Expected Completion Date</th>
+                  <th>Complaint Type</th>
+                  <th>Complaint Sub Type</th>
+                  <th>Description</th>
+                  <th>Subject</th>
+                  <th>Status</th>
+                  <th>Completion Date</th>
+                  <th>Rating</th>
+                  <th>Feedback</th>
+                  <th>Reopen</th>
+                  <th>Attachments</th>
+                  <th>Ward</th>
+                  <th>Address</th>
+                  <th>Peth</th>
+                  <th>GIS</th>
+                  <th>Pincode</th>
+                  <th>Department</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for complaint in page_obj %}
+                  <tr>
+                    <td>{{ complaint.complaint_id }}</td>
+                    <td>{{ complaint.user }}</td>
+                    <td>{{ complaint.registration_date }}</td>
+                    <td>{{ complaint.expected_completion_date }}</td>
+                    <td>{{ complaint.complaint_type_id.complaint_type }}</td>
+                    <td>{{ complaint.complaint_sub_type_id.complaint_sub_type }}</td>
+                    <td>{{ complaint.description }}</td>
+                    <td>{{ complaint.subject }}</td>
+                    <td>{{ complaint.status }}</td>
+                    <td>{{ complaint.completion_date }}</td>
+                    <td>
+                      {% if complaint.rating %}
+                        {% for star in 5|get_range %}
+                          <span class="star" {% if forloop.counter <= complaint.rating %}style="color: rgb(255, 255, 0)"{% endif %}>&#9733;</span>
+                        {% endfor %}
+                      {% else %}
+                        {% for star in 5|get_range %}
+                          <span class="star" data-index="{{ forloop.counter }}" data-complaint-id="{{ complaint.complaint_id }}">&#9733;</span>
+                        {% endfor %}
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if complaint.feedback %}
+                        {{ complaint.feedback }}
+                      {% elif complaint.status == 'Closed' %}
+                        <form method="post" action="{% url 'submit_feedback' %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="complaint_id" value="{{ complaint.complaint_id }}" />
+                          <textarea name="feedback" rows="3" cols="30" placeholder="Enter your feedback here..."></textarea>
+                          <button type="submit">Submit Feedback</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if complaint.status == 'Closed' and complaint.rating %}
+                        <form method="post" action="{% url 'reopen_complaint' complaint.complaint_id %}">
+                          {% csrf_token %}
+                          <button type="submit">Reopen Complaint</button>
+                        </form>
+                      {% else %}
+                        To reopen a closed complaint, please give rating and feedback
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if complaint.attachments %}
+                        <a href="{{ complaint.attachments.url }}">Download</a>
+                      {% else %}
+                        None
+                      {% endif %}
+                    </td>
+                    <td>{{ complaint.ward.ward_name }}</td>
+                    <td>{{ complaint.address }}</td>
+                    <td>{{ complaint.peth.peth_name }}</td>
+                    <td>{{ complaint.gis }}</td>
+                    <td>{{ complaint.pincode.pincode }}</td>
+                    <td>{{ complaint.department.department_name }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div>
+              {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>
+              {% endif %}
+              {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="create-complaint" class="content-section active" style="display: none;">
+      <div class="container" style="flex-direction: column; align-items: center; max-width: 30vw; box-shadow: 0 0 80px 10px rgba(1, 132, 255, 0.5);">
+        <h2>Create a Complaint</h2>
+        <form method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column;">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          {% for field in form %}
+            <div class="form-group">
+              {{ field.label_tag }} {{ field }}
+              {% if field.errors %}
+                {% for error in field.errors %}
+                  <div class="error">{{ error }}</div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endfor %}
+          <button type="submit">Submit Complaint</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/cms.js' %}" type="text/javascript"></script>
+  <script>
+    document.querySelectorAll('.star').forEach(function (star) {
+      star.addEventListener('mouseover', function () {
+        this.classList.add('hover')
+        let index = parseInt(this.getAttribute('data-index'))
+        let stars = this.parentNode.querySelectorAll('.star')
+        stars.forEach((s, idx) => {
+          if (idx < index) s.classList.add('hover')
+          else s.classList.remove('hover')
+        })
+      })
+      star.addEventListener('mouseout', function () {
+        this.classList.remove('hover')
+        this.parentNode.querySelectorAll('.star').forEach((s) => s.classList.remove('hover'))
+      })
+      star.addEventListener('click', function () {
+        let complaintId = this.getAttribute('data-complaint-id')
+        let rating = this.getAttribute('data-index')
+    
+        fetch(`/submit-rating/${complaintId}/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: `rating=${rating}`
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (response.ok) {
+              alert('Rating updated successfully.')
+              location.reload()
+            } else {
+              alert('Error updating rating.')
+            }
+          })
+      })
+    })
+  </script>
+{% endblock %}

@@ -1,182 +1,392 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Water Billing System | {{ DASHBOARD_NAME }}</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/waterBillingStyle.css' %}" />
-    <link rel="shortcut icon" type="image/x-icon" href="{% static 'favicon.ico' %}" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  </head>
-  <body class="body-background" data-update-url="{% url 'update_usage' %}" data-csrf-token="{{ csrf_token }}">
-    <div class="fade-appear">
-      <div class="top-bar d-flex justify-content-between">
-        <div class="left-top-bar-elements">
-          <img class="pmc-logo" src="{% static 'images/pmc_logo.png' %}" alt="PMC Logo" />
-          <h1 id="dashboard_title" class="dashboard-title">{{ DASHBOARD_NAME }}</h1>
-          <div class="top-bar-menu-item-div" id="menu-home">
-            <a href="#" class="top-bar-menu-item" data-target="homeContent">Home</a>
-          </div>
-          <div class="top-bar-menu-item-div active" id="menu-applications">
-            <a href="#" class="top-bar-menu-item">Water Billing System</a>
-          </div>
-        </div>
-        <div class="right-top-bar-elements">
-          <span class="top-right-text">Welcome, {{ user.first_name }} {{ user.last_name }}!</span>
-          <div class="notification-icon-dropdown">
-            <div class="icon-with-badge">
-              <img src="{% static 'images/notification_icon.png' %}" alt="Notification Icon" class="notification-icon" />
-              <span class="notification-badge">2</span>
-            </div>
-            <div class="notification-dropdown-content">
-              <div style="backdrop-filter: blur(10px);">
-                <span class="notification-span">🚨 Your property tax is due!</span>
-                <div class="notification-divider"></div>
-                <span class="notification-span">🚨 Your electricity usage went up by 10%!</span>
-                <div class="notification-divider"></div>
-              </div>
-            </div>
-          </div>
-          <div class="settings-icon-dropdown">
-            <img src="{% static 'images/settings_icon.png' %}" alt="Settings Icon" class="settings-icon" />
-            <div class="settings-dropdown-content">
-              <div style="backdrop-filter: blur(10px);">
-                <a href="#profile"><i class="fas fa-user-circle"></i> Profile</a>
-                <a href="#settings"><i class="fas fa-cog"></i> Settings</a>
-                <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
-                  {% csrf_token %}
-                  <input type="submit" style="display: none;" value="Logout" />
-                </form>
-                <a href="#" onclick="document.getElementById('logout-form').submit(); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="waterBillingSystemContent" class="content-container">
+{% extends 'base.html' %}
+
+{% block title %}
+  Water Billing System | {{ DASHBOARD_NAME }}
+{% endblock %}
+
+{% block stylesheets %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/waterBillingStyle.css' %}" />
+{% endblock %}
+
+{% block navigation %}
+  <div class="top-bar-menu-item-div" id="menu-home">
+    <a href="{% url 'home' %}" class="top-bar-menu-item">Home</a>
+  </div>
+  <div class="top-bar-menu-item-div active" id="menu-applications">
+    <a href="{% url 'profile' %}" class="top-bar-menu-item" data-target="applicationsContent">Water Billing System</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+    <div id="waterBillingSystemContent" class="content-container">
         <div class="subheading">
-          <a class="exportbt" onclick="window.location.href='#'" style="float:right; margin-top: 12px; margin-right: 10px;" target="_blank"><b>EXPORT TO PDF</b></a>
-          <div class="text-container">
+          <div class="text-container active" id="account-statement-header" data-target="account-statement">
             <h3>ACCOUNT STATEMENT</h3>
+            <div class="underline"></div>
+          </div>
+          <div class="text-container" id="applications-header" data-target="applications">
+            <h3>SERVICE APPLICATIONS</h3>
+            <div class="underline"></div>
           </div>
         </div>
-        <div class="container">
-          <div class="meter-selection">
-            <form action="" method="get">
-              <select name="meter_id" onchange="this.form.submit()">
-                {% for meter in user.meters.all %}
-                  <option value="{{ meter.meter_id }}">Meter ID: {{ meter.meter_id }} - {{ meter.location }}</option>
+        <div id="account-statement" class="content-section active">
+          <div class="container">
+            <div class="meter-selection">
+                <form action="{% url 'water_billing_system' %}" method="get" id="meter-selection-form">
+                    <select name="meter_id" onchange="handleMeterChange(this.value)">
+                        <option value="all" {% if not selected_meter %}selected{% endif %}>All Meters</option>
+                        {% for meter in user.meters.all %}
+                        <option value="{{ meter.meter_id }}" {% if selected_meter and selected_meter.meter_id == meter.meter_id %}selected{% endif %}>
+                            Meter ID: {{ meter.meter_id }} - {{ meter.location }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="box">
+               <h3>Meter Details</h3>
+                <div class="meter-box">
+                    <table class="meter-table">
+                        <thead>
+                            <tr>
+                                <th colspan="3">Other Meters</th>
+                            </tr>
+                            <tr>
+                                <th>ID</th>
+                                <th>Location</th>
+                                <th>Connection Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for meter in user.meters.all %}
+                            <tr>
+                                <td>{{ meter.meter_id }}</td>
+                                <td>{{ meter.location }}</td>
+                                <td>{{ meter.connection_status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="latest-meter-container">
+                        <span class="meter-detail"><b>ID:</b> {{ selected_meter.meter_id }}</span>
+                        <span class="meter-detail"><b>Location:</b> {{ selected_meter.location }}</span>
+                        <span class="meter-detail"><b>Installation Date:</b> {{ selected_meter.installation_date|date:"M d, Y" }}</span>
+                        <span class="meter-detail"><b>Connection Status:</b> {{ selected_meter.connection_status }}</span>
+                        <span class="meter-detail"><b>Meter Size:</b> {{ selected_meter.meter_size }}</span>
+                        <span class="meter-detail"><b>AEN Name:</b> {{ selected_meter.ae_name }}</span>
+                        <span class="meter-detail"><b>JEN Name:</b> {{ selected_meter.je_name }}</span>
+                        <span class="meter-detail"><b>Latitude/Longitude:</b> {{ selected_meter.latitude }}/{{ selected_meter.longitude }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="box">
+              <h3 class="latest-reading-header">Latest Reading</h3>
+                <div class="reading-box">
+                    <table class="readings-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Previous Readings</th>
+                            </tr>
+                            <tr>
+                                <th>Date</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in readings|slice:"1:" %}
+                                <tr>
+                                    <td>{{ reading.reading_date|date:"M d, Y" }}</td>
+                                    <td>{{ reading.reading_value }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td>No data available</td>
+                                    <td>No data available</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="latest-reading-container">
+                        {% with readings|first as latest_reading %}
+                            {% if latest_reading %}
+                                <span class="reading-value">{{ latest_reading.reading_value }}<br/></span>
+                                <span class="reading-date">{{ latest_reading.reading_date|date:"M d, Y" }}</span>
+                            {% else %}
+                                <span class="reading-date">No Reading available</span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+            <div class="box">
+              <h3>Latest Payments</h3>
+                <div class="payment-box">
+                    <table class="payments-table">
+                        <thead>
+                            <tr>
+                                <th colspan="3">Past Payments</th>
+                            </tr>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments|slice:"1:" %}
+                            <tr>
+                                <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                <td>{{ payment.amount }}</td>
+                                <td>{{ payment.payment_method }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td>No Payment Data Found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="latest-payment-container">
+                        {% with payments|first as latest_payment %}
+                            {% if latest_payment %}
+                                <span class="payment-amount">{{ latest_payment.amount }}</span>
+                                <span class="payment-date">{{ latest_payment.payment_date|date:"M d, Y" }}</span>
+                                <span class="payment-method">{{ latest_payment.payment_method }}</span>
+                            {% else %}
+                                <span class="payment-date">No Payment Data Found</span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+          </div>
+          <div class="container">
+          <div class="box">
+              <h3>Latest Forecast</h3>
+                <div class="reading-box">
+                    <table class="readings-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Future Forecast</th>
+                            </tr>
+                            <tr>
+                                <th>Month</th>
+                                <th>Forecast</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month, forecast in month_forecast_pairs|slice:"1:" %}
+                                <tr>
+                                    <td>{{ month }}</td>
+                                    <td>{{ forecast|floatformat:"2" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td>No data available</td>
+                                    <td>No data available</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="latest-reading-container">
+                        {% with month_forecast_pairs|first as latest_forecast %}
+                            {% if latest_forecast %}
+                                <span class="reading-value">{{ latest_forecast.1|floatformat:"2" }}<br/></span>
+                                <span class="reading-date">{{ latest_forecast.0 }}</span>
+                            {% else %}
+                                <span class="reading-date">No Forecast available</span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    Next Payment Period: {{ next_payment_period.from }} to {{ next_payment_period.to }} <br>
+                    Forecasted Amount For the Next Period: {{ next_payment_period.amount|floatformat:"2" }}
+                </div>
+            </div>
+            <div id="billingChart" style="width:65%;height:500px;border-left: 1px solid #ccc;"></div>
+          </div>
+          <div class="container">
+            <div class="billing-table-header">
+                <h3>Bills and Payments</h3>
+                <button id="export-pdf" class="exportbt">Export to PDF</button>
+            </div>
+            <table id="billing-table">
+              <thead>
+                <tr>
+                  <th>Sr. No.</th>
+                  <th>Bill Month</th>
+                  <th>Bill Year</th>
+                  <th>Bill ID</th>
+                  <th>Bill Amount</th>
+                  <th>Penalty</th>
+                  <th>Bill Date</th>
+                  <th>Due Date</th>
+                  <th>From Date</th>
+                  <th>To Date</th>
+                  <th>Transaction ID</th>
+                  <th>Payment ID</th>
+                  <th>Payment Date</th>
+                  <th>Payment Amount</th>
+                  <th>Payment Method</th>
+                  <th>Payment Status</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for bill in bill_payment_data %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ bill.month }}</td>
+                    <td>{{ bill.year }}</td>
+                    <td><button id="button" class="bill-detail-button" data-bill-id="{{ bill.bill_id }}" onclick="showPopup('Details for Bill ID: {{ bill.bill_id }}')">{{ bill.bill_id }}</button></td>
+                    <td>{{ bill.bill_amount }}</td>
+                    <td>{{ bill.penalty }}</td>
+                    <td>{{ bill.bill_date }}</td>
+                    <td>{{ bill.due_date }}</td>
+                    <td>{{ bill.from_date }}</td>
+                    <td>{{ bill.to_date }}</td>
+                    {% for payment in bill.payments %}
+                        <td><button id="button" class="payment-detail-button" data-payment-id="{{ payment.trans_id }}" onclick="showPopup('Details for Transaction ID: {{ payment.trans_id }}')">{{ payment.trans_id }}</button></td>
+                        <td>{{ payment.payment_id }}</td>
+                        <td>{{ payment.payment_date }}</td>
+                        <td>{{ payment.amount }}</td>
+                        <td>{{ payment.method }}</td>
+                        <td>{{ payment.payment_status }}</td>
+                        <td>{{ payment.remarks }}</td>
+                      {% empty %}
+                        <td>No payments made yet.</td>
+                        <td>No payments made yet.</td>
+                        <td>No payments made yet.</td>
+                        <td>No payments made yet.</td>
+                    {% endfor %}
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="17">No bills available.</td>
+                  </tr>
                 {% endfor %}
-              </select>
-            </form>
-          </div>
-          <div class="box">
-            <h3>Meter Details</h3>
-            <p>
-              <b>ID:</b> {{ selected_meter.meter_id }}
-            </p>
-            <p>
-              <b>Location:</b> {{ selected_meter.location }}
-            </p>
-            <p>
-              <b>Installation Date:</b> {{ selected_meter.installation_date }}
-            </p>
-            <p>
-              <b>Connection Status:</b> {{ selected_meter.connection_status }}
-            </p>
-          </div>
-          <div class="box">
-            <h3>User Details</h3>
-            <p>
-              <b>Name:</b> {{ user.get_full_name }}
-            </p>
-            <p>
-              <b>Address:</b> {{ user.address }}
-            </p>
-            <p>
-              <b>Number of Family Members:</b> {{ user.number_of_family_members }}
-            </p>
-          </div>
-          <div class="box">
-            <h3>Latest Reading</h3>
-            {% for reading in readings %}
-              <p>
-                <b>Date:</b> {{ reading.reading_date }}
-              </p>
-              <p>
-                <b>Value:</b> {{ reading.reading_value }}
-              </p>
-              {% empty %}
-              <p>No readings available.</p>
-            {% endfor %}
-          </div>
-          <div class="box">
-            <h3>Recent Payments</h3>
-            {% for payment in payments %}
-              <p>
-                <b>Date:</b> {{ payment.payment_date }}
-              </p>
-              <p>
-                <b>Amount:</b> {{ payment.amount }}
-              </p>
-              <p>
-                <b>Method:</b> {{ payment.payment_method }}
-              </p>
-              {% empty %}
-              <p>No payments found.</p>
-            {% endfor %}
-          </div>
+              </tbody>
+            </table>
         </div>
-        <div class="container">
-          <h3>Bills and Payments</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Bill ID</th>
-                <th>Bill Date</th>
-                <th>Due Date</th>
-                <th>Bill Amount</th>
-                <th>Penalty</th>
-                <th>Payment Date</th>
-                <th>Transaction ID</th>
-                <th>Payment Amount</th>
-                <th>Payment Method</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for bill in bill_payment_data %}
-                <tr>
-                  <td>{{ bill.bill_id }}</td>
-                  <td>{{ bill.bill_date }}</td>
-                  <td>{{ bill.due_date }}</td>
-                  <td>{{ bill.bill_amount }}</td>
-                  <td>{{ bill.penalty }}</td>
-                  {% for payment in bill.payments %}
-                    <td>{{ payment.payment_date }}</td>
-                    <td>{{ payment.trans_id }}</td>
-                    <td>{{ payment.amount }}</td>
-                    <td>{{ payment.method }}</td>
-                    {% empty %}
-                    <td>No payments made yet.</td>
-                    <td>No payments made yet.</td>
-                    <td>No payments made yet.</td>
-                    <td>No payments made yet.</td>
-                  {% endfor %}
-                </tr>
-                {% empty %}
-                <tr>
-                  <td colspan="5">No bills available.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
         </div>
-      </div>
+        <div id="applications" class="content-section" style="display: none;">
+            <div class="container">
+                <h3>Ongoing Service Requests</h3>
+                <div class="meter-selection">
+                    <form action="{% url 'water_billing_system' %}" method="get" id="meter-selection-form">
+                        <select name="meter_id" onchange="handleMeterChange(this.value)">
+                            <option value="all" {% if not selected_meter %}selected{% endif %}>All Meters</option>
+                            {% for meter in user.meters.all %}
+                            <option value="{{ meter.meter_id }}" {% if selected_meter and selected_meter.meter_id == meter.meter_id %}selected{% endif %}>
+                                Meter ID: {{ meter.meter_id }} - {{ meter.location }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr. No.</th>
+                            <th>Service ID</th>
+                            <th>Service Date</th>
+                            <th>Service Type</th>
+                            <th>Service Details</th>
+                            <th>Meter ID</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in ongoing_services %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ service.service_id }}</td>
+                            <td>{{ service.service_date|date:"Y-m-d" }}</td>
+                            <td>{{ service.service_type }}</td>
+                            <td>{{ service.service_details }}</td>
+                            <td>{{ service.meter_id }}</td>
+                            <td>{{ service.status }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">No ongoing services found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="container">
+                <h3>Completed Service Requests</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr. No.</th>
+                            <th>Service ID</th>
+                            <th>Service Date</th>
+                            <th>Service Type</th>
+                            <th>Service Details</th>
+                            <th>Meter ID</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in completed_services %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ service.service_id }}</td>
+                            <td>{{ service.service_date|date:"Y-m-d" }}</td>
+                            <td>{{ service.service_type }}</td>
+                            <td>{{ service.service_details }}</td>
+                            <td>{{ service.meter_id }}</td>
+                            <td>{{ service.status }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">No completed services found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
+    <div id="popup-overlay" style="display:none;">
+        <div id="popup-content" class="popup-content">
+            <span class="close-btn" onclick="closePopup()">&times;</span>
+            <button id="export-pdf-bill-details" class="exportbt">Export to PDF</button>
+            <div id="details-content">
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
-    <script src="{% static 'js/home.js' %}" type="text/javascript"></script>
-  </body>
-</html>
+    <script src="{% static 'js/water_billing.js' %}" type="text/javascript"></script>
+    <script>
+        var trace1 = {
+            x: {{ months|safe }},
+            y: {{ billing_amounts|safe }},
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: 'Billing Amount'
+        };
+
+        var data = [trace1];
+
+        var layout = {
+            title: 'Billing and Forecasted Trends',
+            xaxis: {
+                title: 'Month'
+            },
+            yaxis: {
+                title: 'Amount'
+            }
+        };
+
+        Plotly.newPlot('billingChart', data, layout);
+    </script>
+{% endblock %}

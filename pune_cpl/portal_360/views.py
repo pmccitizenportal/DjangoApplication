@@ -1,12 +1,15 @@
+from .models import *
 from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, logout, login
-from .forms import CustomLoginForm, OTPForm, CustomUserCreationForm, ResetPasswordForm
-from .models import ApplicationUsage
 from django.http import JsonResponse
+from .models import ApplicationUsage
+from django.contrib.auth import login
+from django.shortcuts import render, redirect
+from .application_views.property_tax_view import *
+from .application_views.water_billing_view import *
+from .application_views.cms_view import *
 from django.views.decorators.http import require_POST
-from .models import Meter, Reading, Billing, MeterService, Payment
+from django.contrib.auth.decorators import login_required
+from .forms import CustomLoginForm, OTPForm, CustomUserCreationForm, ResetPasswordForm, CustomUserEditForm
 
 def login_view(request):
     if request.method == 'POST':
@@ -84,6 +87,22 @@ def home_view(request):
     })
 
 @login_required
+def edit_profile(request):
+    user = request.user
+    if request.method == 'POST':
+        form = CustomUserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully.")
+            return redirect('profile')
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = CustomUserEditForm(instance=user)
+
+    return render(request, 'profile.html', {'form': form})
+
+@login_required
 @require_POST
 def update_application_usage(request):
     app_name = request.POST.get('application_name')
@@ -101,50 +120,3 @@ def update_application_usage(request):
         app_usage.save()
 
     return JsonResponse({'usage_count': app_usage.usage_count})
-
-@login_required
-def water_billing_system_view(request):
-    user = request.user
-    selected_meter_id = request.GET.get('meter_id')
-    
-    if selected_meter_id:
-        selected_meter = Meter.objects.filter(user=user, meter_id=selected_meter_id).first()
-    else:
-        selected_meter = user.meters.first()
-    
-    readings = Reading.objects.filter(meter=selected_meter).order_by('-reading_date')[:5]
-    bills = Billing.objects.filter(user=user).order_by('-bill_date')
-    payments = None
-    
-    bill_payment_data = []
-    for bill in bills:
-        payments = Payment.objects.filter(bill=bill).order_by('payment_date')
-        payment_details = {
-            'bill_id': bill.bill_id,
-            'bill_date': bill.bill_date,
-            'due_date': bill.due_date,
-            'bill_amount': bill.bill_amount,
-            'penalty': bill.penalty,
-            'payments': [],
-        }
-
-        for payment in payments:
-            payment_info = {
-                'payment_date': payment.payment_date,
-                'trans_id': payment.trans_id,
-                'amount': payment.amount,
-                'method': payment.payment_method
-            }
-            payment_details['payments'].append(payment_info)
-        
-        bill_payment_data.append(payment_details)
-
-    context = {
-        'user': user,
-        'selected_meter': selected_meter,
-        'readings': readings,
-        'bill_payment_data': bill_payment_data,
-        'payments': payments,
-    }
-
-    return render(request, 'water_billing_system.html', context)

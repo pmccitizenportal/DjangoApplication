@@ -36,11 +36,11 @@ def application_url(app_name):
     #     'Geographic Information System': 'geographic_information_system',
     #     'Chatbot': 'chatbot',
     # }
-    app_images = {
-        'Property Tax': 'water_billing_system',
+    app_urls = {
+        'Property Tax': 'property_tax',
         'Water Billing System': 'water_billing_system',
         'Participatory Budget': 'water_billing_system',
-        'Complaint Management System': 'water_billing_system',
+        'Complaint Management System': 'cms',
         'Legal Department': 'water_billing_system',
         'Shahari Garib Yojana': 'water_billing_system',
         'Local Body Tax': 'water_billing_system',
@@ -50,4 +50,4 @@ def application_url(app_name):
         'Geographic Information System': 'water_billing_system',
         'Chatbot': 'water_billing_system',
     }
-    return app_images.get(app_name, 'home')
+    return app_urls.get(app_name, 'home')

@@ -159,6 +159,10 @@
     cursor: pointer;
 }
 
+.required-asterisk {
+    color: red;
+    margin-left: 5px;
+}
 
 .signup label:hover {
     text-decoration: underline;
@@ -399,4 +403,30 @@ fieldset {
     to {
         text-shadow: -1px -1px 10px rgba(0, 0, 0, 0.5);
     }
+}
+
+#registrationForm {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    padding: 20px;
+}
+
+#registrationForm form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+#registrationForm .form-control,
+#registrationForm .form input {
+    width: 100%;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.button-container {
+    grid-column: 1 / -1;
+    text-align: center;
+    margin-top: 20px;
 }

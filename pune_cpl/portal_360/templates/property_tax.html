@@ -1,0 +1,586 @@
+{% extends 'base.html' %}
+
+{% block title %}Property Tax | {{ DASHBOARD_NAME }}{% endblock %}
+
+{% block stylesheets %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/propertyTaxStyle.css' %}" />
+{% endblock %}
+
+{% block navigation %}
+    <div class="top-bar-menu-item-div" id="menu-home">
+      <a href="{% url 'home' %}" class="top-bar-menu-item">Home</a>
+    </div>
+    <div class="top-bar-menu-item-div active" id="menu-applications">
+      <a href="{% url 'profile' %}" class="top-bar-menu-item" data-target="applicationsContent">Property Tax</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+    {% load custom_filters %}
+    <div class="content-container" id="all-property-content" style="{% if selected_property %}display: none;{% endif %}">
+        <div class="container">
+            <div class="property-selection">
+                <form action="{% url 'property_tax' %}" method="get" id="property-selection-form">
+                    <select name="property_id" onchange="this.form.submit()">
+                        <option value="all" {% if not selected_property %}selected{% endif %}>All Properties</option>
+                        {% for property in user.properties.all %}
+                            <option value="{{ property.property_id }}" {% if selected_property and selected_property.property_id == property.property_id %}selected{% endif %}>
+                                Property ID: {{ property.property_id }} - {{ property.peth_name }} - {{ property.ward_name }} - {{ property.pincode }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="box" style="width: 100%; margin: 0;">
+                <h3>Property Details</h3>
+                <div class="property-box">
+                    <div class="scrollable-table-container">
+                        <button id="export-pdf" class="exportbt">Export to PDF</button>
+                        <table id="property-table" class="scrollable-property-table">
+                            <thead>
+                                <tr>
+                                    <th>Sr. No.</th>
+                                    <th>Property ID</th>
+                                    <th>Verification ID</th>
+                                    <th>Peth Name</th>
+                                    <th>Ward Name</th>
+                                    <th>Address</th>
+                                    <th>Pincode</th>
+                                    <th>Year Of Occupation</th>
+                                    <th>Floor No.</th>
+                                    <th>Construction Year</th>
+                                    <th>Construction Type</th>
+                                    <th>Property Type</th>
+                                    <th>Property Subtype</th>
+                                    <th>Tax Rate</th>
+                                    <th>Length (feet)</th>
+                                    <th>Width (feet)</th>
+                                    <th>Carpet Area (sq.ft.)</th>
+                                    <th>No. Of Parking Spaces</th>
+                                    <th>Rental</th>
+                                    <th>No. Of Floors</th>
+                                    <th>GIS ID</th>
+                                    <th>Latitude</th>
+                                    <th>Longitude</th>
+                                    <th>Base Value</th>
+                                    <th>Market Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for property in page_obj %}
+                                <tr>
+                                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                    <td>{{ property.property_id }}</td>
+                                    <td>{{ property.verification_id }}</td>
+                                    <td>{{ property.peth_name }}</td>
+                                    <td>{{ property.ward_name }}</td>
+                                    <td>{{ property.address }}</td>
+                                    <td>{{ property.pincode }}</td>
+                                    <td>{{ property.year_of_occupancy }}</td>
+                                    <td>{{ property.floor_number }}</td>
+                                    <td>{{ property.construction_year }}</td>
+                                    <td>{{ property.construction_type }}</td>
+                                    <td>{{ property.property_type }}</td>
+                                    <td>{{ property.property_subtype }}</td>
+                                    <td>{{ property.tax_rate }}%</td>
+                                    <td>{{ property.length }} ft</td>
+                                    <td>{{ property.width }} ft</td>
+                                    <td>{{ property.carpet_area }} sq ft</td>
+                                    <td>{{ property.no_of_parking_spaces }}</td>
+                                    <td>{% if property.is_rental == True %} Yes {% else %} No {% endif %}</td>
+                                    <td>{{ property.no_of_floors }}</td>
+                                    <td>{{ property.gis_id }}</td>
+                                    <td>{{ property.latitude }}</td>
+                                    <td>{{ property.longitude }}</td>
+                                    <td>{{ property.base_value }}</td>
+                                    <td>{{ property.market_value }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="24">No properties found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="pagination">
+                            <span class="step-links">
+                                {% if page_obj.has_previous %}
+                                    <a href="?page={{ page_obj.previous_page_number }}&form-page={{ form_histories.number }}">previous</a>
+                                {% endif %}
+                                <span class="current">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                                </span>
+                                {% if page_obj.has_next %}
+                                    <a href="?page={{ page_obj.next_page_number }}&form-page={{ form_histories.number }}">next</a>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="latest-property-container">
+                        <div class="property-detail"><b>Total Properties:</b> {{ total_properties }}</div>
+                        <div class="property-detail"><b>Average Market Value:</b> {{ average_market_value }}</div>
+                        <div class="property-detail"><b>Total Carpet Area:</b> {{ total_carpet_area }}</div>
+                        <div class="property-detail"><b>Properties Rented:</b> {{ properties_rented }}</div>
+                        <div class="property-detail"><b>Average Construction Year:</b> {{ average_construction_year|floatformat:0 }}</div>
+                        <div class="property-detail"><b>Total Parking Spaces:</b> {{ total_parking_spaces }}</div>
+                        <div class="property-detail"><b>Total Tax Collected This Year:</b> {{ total_tax_collected }}</div>
+                        <div class="property-detail"><b>Active Verifications:</b> {{ active_verifications }}</div>
+                        <div class="property-detail"><b>Average Age of Properties:</b> {{ average_age }}</div>
+                        <div class="property-detail"><b>Most Common Property Type:</b>{% if common_property_type %}
+                                                                                            {{ common_property_type.property_type }}
+                                                                                        {% else %}
+                                                                                            N/A
+                                                                                        {% endif %}</div>
+                        <div class="property-detail"><b>Highest Base Value:</b> {{ highest_base_value }}</div>
+                        <div class="property-detail"><b>Total Amount Collected:</b> Rs. {{ total_amount_collected|default:"0" }}</div>
+                        <div class="property-detail"><b>Frequency of Partial Payments:</b> {{ partial_payments }}</div>
+                        <div class="property-detail"><b>Next Due Date:</b> {{ next_due_date|date:"d-m-Y" }}</div>
+                        <div class="property-detail"><b>Remaining Duration:</b> {{ remaining_duration }} days</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container" style="flex-direction: column;">
+        <div class="box" style="width: 100%; margin-left: 0;">
+            <h3>Latest Forecast</h3>
+                <div class="reading-box">
+                    <table class="readings-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Future Forecast</th>
+                            </tr>
+                            <tr>
+                                <th>Month</th>
+                                <th>Forecast</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month, forecast in month_forecast_pairs|slice:"1:" %}
+                                <tr>
+                                    <td>{{ month }}</td>
+                                    <td>{{ forecast }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td>No data available</td>
+                                    <td>No data available</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="latest-reading-container">
+                        {% with month_forecast_pairs|first as latest_forecast %}
+                            {% if latest_forecast %}
+                                <span class="reading-value">{{ latest_forecast.1 }}<br/></span>
+                                <span class="reading-date">{{ latest_forecast.0 }}</span>
+                            {% else %}
+                                <span class="reading-date">No Forecast available</span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    Next Payment Period: {{ next_payment_period.from }} to {{ next_payment_period.to }} <br>
+                    Forecasted Amount For the Next Period: {{ next_payment_period.amount }}
+                </div>
+            </div>
+            <div class="box" style="width: 100%; margin-left: 0;">
+                <div id="billingChart" style="width: 100%; height: 600px;"></div>
+            </div>
+        </div>
+        <div class="container">
+            <h3>Property Tax Distribution</h3>
+            <div class="property-box">
+                <div class="box" style="width: 45%;">
+                    <div id="tax-distribution-chart" style="width: 100%; height: 100%;"></div>
+                    <p id="chart-label" style="text-align: center; margin-top: 5px;">
+                        Note: The numbers on the chart represent the IDs of properties.
+                    </p>
+                </div>
+                <div class="box" style="width: 45%;">
+                    <div id="tax-distribution-by-month" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <h3>Form History by Property</h3>
+            <div class="property-box">
+                <div id="form-histories" class="box" style="width: 100%;">
+                    <div id="form-history-options">
+                        <button id="export-pdf-form-history" class="exportbt">Export to PDF</button>
+                        <div class="form-status-selection">
+                            <form action="{% url 'property_tax' %}" method="get" id="status-filter-form">
+                                <select name="status_filter" onchange="this.form.submit()">
+                                    <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                                    <option value="Pending" {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
+                                    <option value="Approved" {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
+                                    <option value="Rejected" {% if status_filter == "Rejected" %}selected{% endif %}>Rejected</option>
+                                </select>
+                            </form>
+                        </div>
+                    </div>
+                    <table id="form-histories-table">
+                        <thead>
+                            <tr>
+                                <th>Form No.</th>
+                                <th>Form Type</th>
+                                <th>Date of Application</th>
+                                <th>Status</th>
+                                <th>Date of Disposal</th>
+                                <th>Remarks</th>
+                                <th>Notices/Docs Uploaded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form_history in form_histories %}
+                                {% ifchanged form_history.property_id %}
+                                    {% if not forloop.first %}
+                                        </tbody>
+                                        <tbody>
+                                    {% endif %}
+                                    <tr>
+                                        <th colspan="7" style="font-style: italic; background-color: #f0f0f0; line-height: 1.5;">
+                                            Property ID: {{ form_history.property_id }}<br>
+                                        </th>
+                                    </tr>
+                                {% endifchanged %}
+                                <tr>
+                                    <td>{{ form_history.form_number }}</td>
+                                    <td>{{ form_history.form_type }}</td>
+                                    <td>{{ form_history.date_of_application }}</td>
+                                    <td>{{ form_history.status }}</td>
+                                    <td>{{ form_history.date_of_disposal|default_if_none:"-" }}</td>
+                                    <td>{{ form_history.remarks|default:"-" }}</td>
+                                    <td><button id="button" class="docs-button" type="button">Download File</button></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <span class="step-links">
+                            {% if form_histories.has_previous %}
+                                <a href="?form-page={{ form_histories.previous_page_number }}&page={{ page_obj.number }}#form-histories">previous</a>
+                            {% endif %}
+                            <span class="current">
+                                Form Page {{ form_histories.number }} of {{ form_histories.paginator.num_pages }}.
+                            </span>
+                            {% if form_histories.has_next %}
+                                <a href="?form-page={{ form_histories.next_page_number }}&page={{ page_obj.number }}#form-histories">next</a>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="property-content" class="content-container" style="{% if not selected_property %}display: none;{% else %}display: flex;{% endif %}">
+        <div class="container" style="justify-content: flex-start;">
+            <div class="property-selection">
+                <form action="{% url 'property_tax' %}" method="get" id="property-selection-form">
+                    <select name="property_id" onchange="this.form.submit()">
+                        <option value="all" {% if not selected_property %}selected{% endif %}>All Properties</option>
+                        {% for property in user.properties.all %}
+                        <option value="{{ property.property_id }}" {% if selected_property and selected_property.property_id == property.property_id %}selected{% endif %}>
+                            Property ID: {{ property.property_id }} - {{ property.peth_name }} - {{ property.ward_name }} - {{ property.pincode }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="box" style="width: 50%;">
+                {% if selected_property %}
+                    <h2>Details for Property ID: {{ selected_property.property_id }}</h2>
+                    <div class="property-details-container">
+                        <div class="property-detail"><strong>Property ID:</strong> {{ selected_property.property_id }}</div>
+                        <div class="property-detail"><strong>Verification ID:</strong> {{ selected_property.verification_id }}</div>
+                        <div class="property-detail"><strong>Peth Name:</strong> {{ selected_property.peth_name }}</div>
+                        <div class="property-detail"><strong>Ward Name:</strong> {{ selected_property.ward_name }}</div>
+                        <div class="property-detail"><strong>Address:</strong> {{ selected_property.address }}</div>
+                        <div class="property-detail"><strong>Pincode:</strong> {{ selected_property.pincode }}</div>
+                        <div class="property-detail"><strong>Year of Occupancy:</strong> {{ selected_property.year_of_occupancy }}</div>
+                        <div class="property-detail"><strong>Floor Number:</strong> {{ selected_property.floor_number }}</div>
+                        <div class="property-detail"><strong>Construction Year:</strong> {{ selected_property.construction_year }}</div>
+                        <div class="property-detail"><strong>Construction Type:</strong> {{ selected_property.get_construction_type_display }}</div>
+                        <div class="property-detail"><strong>Construction Type ID:</strong> {{ selected_property.construction_type_id }}</div>
+                        <div class="property-detail"><strong>Property Type:</strong> {{ selected_property.get_property_type_display }}</div>
+                        <div class="property-detail"><strong>Property Subtype:</strong> {{ selected_property.get_property_subtype_display }}</div>
+                        <div class="property-detail"><strong>Tax Rate:</strong> {{ selected_property.tax_rate }}%</div>
+                        <div class="property-detail"><strong>Length:</strong> {{ selected_property.length }} ft</div>
+                        <div class="property-detail"><strong>Width:</strong> {{ selected_property.width }} ft</div>
+                        <div class="property-detail"><strong>Carpet Area:</strong> {{ selected_property.carpet_area }} sq ft</div>
+                        <div class="property-detail"><strong>Number of Parking Spaces:</strong> {{ selected_property.no_of_parking_spaces }}</div>
+                        <div class="property-detail"><strong>Parking Available:</strong> {{ selected_property.is_parking|yesno:"Yes,No" }}</div>
+                        <div class="property-detail"><strong>Rental Property:</strong> {{ selected_property.is_rental|yesno:"Yes,No" }}</div>
+                        <div class="property-detail"><strong>Number of Floors:</strong> {{ selected_property.no_of_floors }}</div>
+                        <div class="property-detail"><strong>GIS ID:</strong> {{ selected_property.gis_id }}</div>
+                        <div class="property-detail"><strong>Base Value:</strong> {{ selected_property.base_value }}</div>
+                        <div class="property-detail"><strong>Market Value:</strong> {{ selected_property.market_value }}</div>
+                        <div class="property-detail"><strong>Latitude:</strong> {{ selected_property.latitude }}</div>
+                        <div class="property-detail"><strong>Longitude:</strong> {{ selected_property.longitude }}</div>
+                    </div>
+                {% else %}
+                    <p>Select a property to see details.</p>
+                {% endif %}
+            </div>
+            <div class="box" style="width: 47%; flex-wrap: wrap; align-content: space-around; justify-content: center; flex-direction: column;">
+                {% if selected_property %}
+                    <div class="box" style="width: 100%"><strong>Total Tax Paid:</strong><span class="reading-value">{{ total_tax_paid }}</span></div>
+                    <div class="box" style="width: 100%"><strong>Outstanding Amount:</strong><span class="reading-value">{{ outstanding_amount }}</span></div>
+                    <div class="box" style="width: 100%"><strong>Forecasted Amount for Next Period:</strong><span class="reading-value">{{ forecasted_next_period_amount }}</span></div>
+                {% else %}
+                    <p>Select a property to see details.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="container" style="justify-content: space-around;">
+            <div class="box" style="width: 48%">
+                <div id="taxTrendLineChart" style="width: 100%"></div>
+            </div>
+            <div class="box" style="width: 48%">
+                <div id="paymentFrequencyPieChart" style="width: 100%"></div>
+            </div>
+        </div>
+        <div class="container" style="flex-direction: column; align-items: center;">
+            <h3>Application Form History</h3>
+            <table id="form-histories-table">
+                <thead>
+                    <tr>
+                        <th>Form No.</th>
+                        <th>Form Type</th>
+                        <th>Date of Application</th>
+                        <th>Status</th>
+                        <th>Date of Disposal</th>
+                        <th>Remarks</th>
+                        <th>Notices/Docs Uploaded</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form_history in form_histories %}
+                        {% ifchanged form_history.property_id %}
+                            {% if not forloop.first %}
+                                </tbody>
+                                <tbody>
+                            {% endif %}
+                            <tr>
+                                <th colspan="7" style="font-style: italic; background-color: #f0f0f0; line-height: 1.5;">
+                                    Property ID: {{ form_history.property_id }}<br>
+                                </th>
+                            </tr>
+                        {% endifchanged %}
+                        <tr>
+                            <td>{{ form_history.form_number }}</td>
+                            <td>{{ form_history.form_type }}</td>
+                            <td>{{ form_history.date_of_application }}</td>
+                            <td>{{ form_history.status }}</td>
+                            <td>{{ form_history.date_of_disposal|default_if_none:"-" }}</td>
+                            <td>{{ form_history.remarks|default:"-" }}</td>
+                            <td><button id="button" class="docs-button" type="button">Download File</button></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="container" style="flex-direction: column; align-items: center;">
+            <h3>Account Statements</h3>
+            <div class="scrollable-table-container" style="width: 100%; border: none; margin: 0;">
+                <table class="scrollable-property-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Property ID</th>
+                            <th>Due Date</th>
+                            <th>Payment Date</th>
+                            <th>Challan No.</th>
+                            <th>Transaction No.</th>
+                            <th>Base Value</th>
+                            <th>Floor Factor</th>
+                            <th>Age Factor</th>
+                            <th>Property Type</th>
+                            <th>Building Type Value</th>
+                            <th>Carpet Area</th>
+                            <th>Capital Value</th>
+                            <th>Tax Rate</th>
+                            <th>Property Tax</th>
+                            <th>Discount</th>
+                            <th>Penalty Fee</th>
+                            <th>Bill Amount</th>
+                            <th>Amount Paid</th>
+                            <th>Pending Amount</th>
+                            <th>Remarks</th>
+                            <th>Payment Status</th>
+                            <th>Payment Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for statement in account_statements %}
+                        <tr>
+                            <td>{{ statement.statement_id }}</td>
+                            <td>{{ statement.property_id }}</td>
+                            <td>{{ statement.due_date|date:"Y-m-d" }}</td>
+                            <td>{{ statement.payment_date|date:"Y-m-d" }}</td>
+                            <td>{{ statement.challan_number }}</td>
+                            <td>{{ statement.transaction_number }}</td>
+                            <td>{{ statement.base_value }}</td>
+                            <td>{{ statement.floor_factor }}</td>
+                            <td>{{ statement.age_factor }}</td>
+                            <td>{{ statement.property_type }}</td>
+                            <td>{{ statement.building_type_value }}</td>
+                            <td>{{ statement.carpet_area }}</td>
+                            <td>{{ statement.capital_value }}</td>
+                            <td>{{ statement.tax_rate }}</td>
+                            <td>{{ statement.property_tax }}</td>
+                            <td>{{ statement.discount }}</td>
+                            <td>{{ statement.penalty_fee }}</td>
+                            <td>{{ statement.bill_amount }}</td>
+                            <td>{{ statement.amount_paid }}</td>
+                            <td>{{ statement.pending_amount }}</td>
+                            <td>{{ statement.remarks }}</td>
+                            <td>{{ statement.payment_status }}</td>
+                            <td>{{ statement.payment_method }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="24">No account statements available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            var data = [{
+                values: {{ tax_distribution|get_property_tax|safe }},
+                labels: {{ tax_distribution|get_property_ids|safe }},
+                type: 'pie'
+            }];
+
+            var layout = {
+                autosize: true,
+                title: 'Tax Distribution by Property',
+                legend: {
+                    x: 1,
+                    xanchor: 'right',
+                    y: 0.5
+                }
+            };
+            
+            var config = {
+                responsive: true
+            };
+            
+            Plotly.newPlot('tax-distribution-chart', data, layout, config);
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var rawData = {{ stacked_bar_data|safe }};
+            var traces = [];
+            
+            Object.keys(rawData.traces).forEach(function(propertyId) {
+                var trace = {
+                    x: rawData.x,
+                    y: rawData.traces[propertyId],
+                    name: 'Property ID ' + propertyId,
+                    type: 'bar'
+                };
+                traces.push(trace);
+            });
+
+            var layout = {
+                title: 'Monthly Tax Distribution by Property',
+                barmode: 'stack',
+                bargap: 0.05,
+                xaxis: {
+                    title: 'Month',
+                    rangeselector: {
+                        buttons: [
+                        {count: 1, label: '1m', step: 'month', stepmode: 'backward'},
+                            {count: 6, label: '6m', step: 'month', stepmode: 'backward'},
+                            {count: 1, label: '1y', step: 'year', stepmode: 'backward'},
+                            {step: 'all', label: 'All'}
+                        ]
+                    },
+                    rangeslider: { visible: true },
+                    type: 'date',
+                    tickformat: '%b %Y'
+                },
+                yaxis: {title: 'Tax Collected'}
+            };
+
+            Plotly.newPlot('tax-distribution-by-month', traces, layout);
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var billingChartData = {{ billing_chart_data|safe }};
+
+            var trace = {
+                x: billingChartData.labels,
+                y: billingChartData.data,
+                type: 'scatter',
+                mode: 'lines+markers',
+                marker: {
+                    color: 'rgb(75, 192, 192)'
+                },
+                hoverinfo: 'x+y'
+            };
+
+            var layout = {
+                title: 'Tax Collection Over Time',
+                xaxis: {
+                    title: 'Month',
+                    rangeslider: { visible: true },
+                },
+                yaxis: {
+                    title: 'Tax Collected',
+                    tickformat: function(d) {
+                        if (d >= 1e7) {
+                            return (d / 1e7).toFixed(2) + ' Cr';
+                        } else if (d >= 1e5) {
+                            return (d / 1e5).toFixed(2) + ' L';
+                        } else {
+                            return d.toFixed(2);
+                        }
+                    },
+                    hoverformat: '.2f'
+                },
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('billingChart', [trace], layout);
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var lineData = JSON.parse('{{ line_chart_data|safe }}');
+            var pieData = JSON.parse('{{ pie_chart_data|safe }}');
+
+            Plotly.newPlot('taxTrendLineChart', [{
+                x: lineData.labels,
+                y: lineData.data,
+                type: 'scatter',
+                mode: 'lines+markers'
+            }], {
+                title: 'Property Tax Bill Trend',
+                autosize: true,
+                xaxis: {title: 'Month'},
+                yaxis: {title: 'Total Tax Collected'}
+            });
+
+            Plotly.newPlot('paymentFrequencyPieChart', [{
+                labels: pieData.labels,
+                values: pieData.values,
+                type: 'pie'
+            }], {
+                title: 'Payment Frequency'
+            });
+        });
+    </script>
+    <script src="{% static 'js/property_tax.js' %}" type="text/javascript"></script>
+{% endblock %}

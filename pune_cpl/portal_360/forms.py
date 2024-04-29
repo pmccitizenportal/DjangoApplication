@@ -6,8 +6,10 @@ from django.core.validators import RegexValidator, EmailValidator
 from django.contrib.auth.password_validation import validate_password
 from django.forms.widgets import Select, TextInput, PasswordInput, DateInput, Textarea, Textarea
 from django.db.models import JSONField
-from .common_data import NATIONALITIES
+from .common_data import NATIONALITIES, COMPLAINT_SUBTYPE_CHOICES, COMPLAINT_TYPE_CHOICES
 from .validators import *
+from .application_models.master_tables import *
+from .models import CustomUser, CMSComplaintType, CMSComplaintSubType, CMSComplaints
 
 User = get_user_model()
 
@@ -199,3 +201,126 @@ class ResetPasswordForm(forms.Form):
         user = User.objects.get(username=username)
         user.set_password(new_password)
         user.save()
+
+class CustomUserEditForm(forms.ModelForm):
+    dob = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'YYYY-MM-DD'}),
+        input_formats=['%Y-%m-%d'],
+        required=False
+    )
+    
+    gender = forms.ChoiceField(
+        choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')],
+        widget=forms.Select(attrs={'class': 'form-control', 'disabled': True}),
+        required=False
+    )
+    nationality = forms.ChoiceField(
+        choices=NATIONALITIES,
+        widget=forms.Select(attrs={'class': 'form-control', 'disabled': True}),
+        required=False
+    )
+    marital_status = forms.ChoiceField(
+        choices=[('single', 'Single'), ('married', 'Married'), ('divorced', 'Divorced'), ('widowed', 'Widowed')],
+        widget=forms.Select(attrs={'class': 'form-control', 'disabled': True}),
+        required=False
+    )
+    
+    class Meta:
+        model = User
+        fields = (
+            'username', 'email', 'mobile_number', 
+            'first_name', 'last_name', 'dob', 'gender', 'nationality', 'address',
+            'number_of_family_members', 'pin_code', 'city', 'state', 'latitude', 'longitude',
+            'aadhar_card_id', 'pan_card_id', 'ration_card_id', 'marital_status', 
+            'spouse_name', 'children_details', 'employment_type',
+        )
+        widgets = {
+            'latitude': forms.NumberInput(attrs={'step': '0.000001'}),
+            'longitude': forms.NumberInput(attrs={'step': '0.000001'}),
+            'gender': forms.Select(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'children_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super(CustomUserEditForm, self).__init__(*args, **kwargs)
+        self.fields['pan_card_id'].required = False
+        self.fields['latitude'].required = False
+        self.fields['longitude'].required = False
+        self.fields['latitude'].validators = []
+        self.fields['longitude'].validators = []
+
+class ComplaintForm(forms.Form):
+    complaint_type = forms.ModelChoiceField(
+        queryset=CMSComplaintType.objects.all(),
+        label="Category",
+        empty_label="Select a Category",
+        required=True
+    )
+    complaint_sub_type = forms.ModelChoiceField(
+        queryset=CMSComplaintSubType.objects.all(),
+        label="Sub-Category",
+        empty_label="Select a Sub-Category after choosing a Category",
+        required=True
+    )
+    subject = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={'placeholder': 'Enter a brief summary of your complaint'}),
+        required=True
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={'placeholder': 'Describe your complaint in detail', 'rows': 5}),
+        required=True
+    )
+    attachments = forms.FileField(
+        widget=forms.FileInput(),
+        required=False
+    )
+    address = forms.CharField(
+        label="Address",
+        widget=forms.TextInput(attrs={'placeholder': 'Enter the complaint address'}),
+        required=True
+    )
+    ward = forms.ModelChoiceField(
+        queryset=Ward.objects.all(),
+        label="Ward",
+        required=True,
+        empty_label="Select the Ward",
+    )
+    peth = forms.ModelChoiceField(
+        queryset=Peth.objects.all(),
+        label="Peth",
+        required=True,
+        empty_label="Select the Peth",
+    )
+    pincode = forms.ModelChoiceField(
+        queryset=Pincode.objects.all(),
+        label="Pincode",
+        required=True,
+        empty_label="Select the Pincode",
+    )
+    # department = forms.ModelChoiceField(
+    #     queryset=Department.objects.all(),
+    #     label="Department",
+    #     required=True,
+    #     empty_label="Select the department",
+    # )
+
+    def __init__(self, *args, **kwargs):
+        super(ComplaintForm, self).__init__(*args, **kwargs)
+        if 'initial' in kwargs:
+            initial_type_id = kwargs['initial'].get('complaint_type')
+            if initial_type_id:
+                self.fields['complaint_sub_type'].queryset = CMSComplaintSubType.objects.filter(complaint_type_id=initial_type_id)
+        elif 'data' in kwargs:
+            data = kwargs['data']
+            type_id = data.get('complaint_type')
+            if type_id:
+                self.fields['complaint_sub_type'].queryset = CMSComplaintSubType.objects.filter(complaint_type_id=type_id)
+
+    def clean_complaint_sub_type(self):
+        sub_type_id = self.cleaned_data.get('complaint_sub_type')
+        type_id = self.cleaned_data.get('complaint_type')
+        if sub_type_id and not CMSComplaintSubType.objects.filter(complaint_type_id=type_id, pk=sub_type_id.pk).exists():
+            raise forms.ValidationError("Select a valid choice. That choice is not one of the available choices.")
+        return sub_type_id

@@ -6,6 +6,12 @@ from .common_data import NATIONALITIES
 from django.contrib.auth.models import User
 from django.conf import settings
 from .application_models.water_billing_system_model import *
+from django.core.exceptions import ValidationError
+from .application_models.property_tax_model import *
+from .application_models.master_tables import *
+from .application_models.complaint_management_system_model import *
+from django.core.validators import MinValueValidator, MaxValueValidator
+import re
 
 class CustomUserManager(BaseUserManager):
     use_in_migrations = True
@@ -34,6 +40,12 @@ class CustomUserManager(BaseUserManager):
 
         return self._create_user(username, password, **extra_fields)
 
+def pan_card_validator(value):
+    if value != "None":
+        regex = r'^[A-Z]{5}\d{4}[A-Z]$'
+        if not re.match(regex, value):
+            raise ValidationError("PAN card number must be in the format: 'ABCDE1234F'.")
+
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=150, help_text="Please enter your username", unique=True, default=None)
     
@@ -52,10 +64,8 @@ class CustomUser(AbstractUser):
         regex=r'^\d{12}$',
         message="Aadhar card number must be 12 digits."
     )], default=None, blank=True, unique=True, null=True)
-    pan_card_id = models.CharField(max_length=10, validators=[RegexValidator(
-        regex=r'^[A-Z]{5}\d{4}[A-Z]$',
-        message="PAN card number must be in the format: 'ABCDE1234F'."
-    )], default=None, blank=True, unique=True, null=True)
+    pan_card_id = models.CharField(max_length=10, 
+        validators=[pan_card_validator], default=None, blank=True, unique=True, null=True)
     ration_card_id = models.CharField(max_length=12, validators=[validate_slug], default=None, blank=True, unique=True, null=True)
 
     gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], default=None)
@@ -73,8 +83,8 @@ class CustomUser(AbstractUser):
     pin_code = models.CharField(max_length=6, validators=[RegexValidator(regex=r'^\d{6}$', message="Enter a valid 6-digit pin code.")], default=None, null=True)
     city = models.CharField(max_length=100, default=None, null=True)
     state = models.CharField(max_length=100, default=None, null=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
 
     class Meta:
         db_table = 'users'
