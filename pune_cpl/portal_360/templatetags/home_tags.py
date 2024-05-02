@@ -39,7 +39,7 @@ def application_url(app_name):
     app_urls = {
         'Property Tax': 'property_tax',
         'Water Billing System': 'water_billing_system',
-        'Participatory Budget': 'water_billing_system',
+        'Participatory Budget': 'participatory_budget',
         'Complaint Management System': 'cms',
         'Legal Department': 'water_billing_system',
         'Shahari Garib Yojana': 'water_billing_system',

@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from .application_models.property_tax_model import *
 from .application_models.master_tables import *
 from .application_models.complaint_management_system_model import *
+from .application_models.participatory_budget_model import *
 from django.core.validators import MinValueValidator, MaxValueValidator
 import re
 
@@ -85,6 +86,13 @@ class CustomUser(AbstractUser):
     state = models.CharField(max_length=100, default=None, null=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
     longitude = models.DecimalField(max_digits=9, decimal_places=6, default=None, null=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
+    age = models.IntegerField(null=True, blank=True)
+    education_level = models.CharField(max_length=100, null=True, blank=True)
+    household_income = models.CharField(max_length=100, null=True, blank=True)  # Assuming income as ranges are specified as strings
+    household_size = models.IntegerField(null=True, blank=True)
+    language_spoken_at_home = models.CharField(max_length=100, null=True, blank=True)
+    disability_status = models.CharField(max_length=100, null=True, blank=True)
+    internet_access = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'users'

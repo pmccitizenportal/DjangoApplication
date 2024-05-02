@@ -62,9 +62,40 @@
           </div>
         </div>
       </div>
-    </div>
-    <div id="my-complaints" class="content-section active" style="display: none;">
       <div class="container">
+        <div class="box" style="width: 48%; padding: 50px;">
+          <h2>Complaints Overview</h2>
+          <ul>
+            <li>Total Complaints: {{ all_complaints }}</li>
+            <li>Resolved Complaints: {{ resolved_complaints }}</li>
+            <li>Pending Complaints: {{ pending_complaints }}</li>
+            <li>Rejected Complaints: {{ rejected_complaints }}</li>
+          </ul>
+          <br/>
+          <h3>Most Common Complaint Types</h3>
+          <ul>
+              {% for type in top_complaint_types %}
+              <li>{{ type.complaint_type_id__complaint_type }}: {{ type.count }}</li>
+              {% endfor %}
+          </ul>
+          <br/>
+          <h3>Complaint Trends by Month</h3>
+          <p>Average Resolution Time: {{ average_resolution_time.average }}</p>
+          <ul>
+              {% for month in monthly_complaints %}
+              <li>{{ month.month|date:"M Y" }}: {{ month.count }}</li>
+              {% endfor %}
+          </ul>
+        </div>
+        <div class="box" style="width: 48%">
+          <div id="complaintStatusPieChart"></div>
+        </div>
+        <div class="box" style="width: 100%;">
+          <div id="complaintTypeSubtypeBarChart"></div>
+        </div>
+      </div>
+      <div class="container">
+        <button id="export-pdf" class="exportbt">Export to PDF</button>
         <select id="status-filter">
           <option value="All">All</option>
           <option value="Pending">Pending</option>
@@ -99,77 +130,285 @@
                 </tr>
               </thead>
               <tbody>
-                {% for complaint in page_obj %}
-                  <tr>
-                    <td>{{ complaint.complaint_id }}</td>
-                    <td>{{ complaint.user }}</td>
-                    <td>{{ complaint.registration_date }}</td>
-                    <td>{{ complaint.expected_completion_date }}</td>
-                    <td>{{ complaint.complaint_type_id.complaint_type }}</td>
-                    <td>{{ complaint.complaint_sub_type_id.complaint_sub_type }}</td>
-                    <td>{{ complaint.description }}</td>
-                    <td>{{ complaint.subject }}</td>
-                    <td>{{ complaint.status }}</td>
-                    <td>{{ complaint.completion_date }}</td>
-                    <td>
-                      {% if complaint.rating %}
-                        {% for star in 5|get_range %}
-                          <span class="star" {% if forloop.counter <= complaint.rating %}style="color: rgb(255, 255, 0)"{% endif %}>&#9733;</span>
-                        {% endfor %}
+                {% if page_obj_all %}
+                  {% for complaint in page_obj_all %}
+                    <tr>
+                      <td>{{ complaint.complaint_id }}</td>
+                      <td>{{ complaint.user }}</td>
+                      <td>{{ complaint.registration_date }}</td>
+                      {% if complaint.expected_completion_date %}
+                        <td>{{ complaint.expected_completion_date }}</td>
                       {% else %}
-                        {% for star in 5|get_range %}
-                          <span class="star" data-index="{{ forloop.counter }}" data-complaint-id="{{ complaint.complaint_id }}">&#9733;</span>
-                        {% endfor %}
+                        <td>Expected Completion Date yet to be assigned</td>
                       {% endif %}
-                    </td>
-                    <td>
-                      {% if complaint.feedback %}
-                        {{ complaint.feedback }}
-                      {% elif complaint.status == 'Closed' %}
-                        <form method="post" action="{% url 'submit_feedback' %}">
-                          {% csrf_token %}
-                          <input type="hidden" name="complaint_id" value="{{ complaint.complaint_id }}" />
-                          <textarea name="feedback" rows="3" cols="30" placeholder="Enter your feedback here..."></textarea>
-                          <button type="submit">Submit Feedback</button>
-                        </form>
+                      <td>{{ complaint.complaint_type_id.complaint_type }}</td>
+                      <td>{{ complaint.complaint_sub_type_id.complaint_sub_type }}</td>
+                      <td>{{ complaint.description }}</td>
+                      <td>{{ complaint.subject }}</td>
+                      <td>{{ complaint.status }}</td>
+                      {% if complaint.completion_date %}
+                        <td>{{ complaint.completion_date }}</td>
+                      {% elif complaint.status != 'Closed' %}
+                        <td>Complaint yet to be closed</td>
                       {% endif %}
-                    </td>
-                    <td>
-                      {% if complaint.status == 'Closed' and complaint.rating %}
-                        <form method="post" action="{% url 'reopen_complaint' complaint.complaint_id %}">
-                          {% csrf_token %}
-                          <button type="submit">Reopen Complaint</button>
-                        </form>
-                      {% else %}
-                        To reopen a closed complaint, please give rating and feedback
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if complaint.attachments %}
-                        <a href="{{ complaint.attachments.url }}">Download</a>
-                      {% else %}
-                        None
-                      {% endif %}
-                    </td>
-                    <td>{{ complaint.ward.ward_name }}</td>
-                    <td>{{ complaint.address }}</td>
-                    <td>{{ complaint.peth.peth_name }}</td>
-                    <td>{{ complaint.gis }}</td>
-                    <td>{{ complaint.pincode.pincode }}</td>
-                    <td>{{ complaint.department.department_name }}</td>
-                  </tr>
-                {% endfor %}
+                      <td>
+                        {% if complaint.rating %}
+                          {% for star in 5|get_range %}
+                            <span class="star" {% if forloop.counter <= complaint.rating %}style="color: rgb(255, 255, 0)"{% endif %}>&#9733;</span>
+                          {% endfor %}
+                        {% elif complaint.status == 'Closed' %}
+                          {% for star in 5|get_range %}
+                            <span class="star" data-index="{{ forloop.counter }}" data-complaint-id="{{ complaint.complaint_id }}">&#9733;</span>
+                          {% endfor %}
+                        {% else %}
+                          Rating can be given once the complaint has been closed.
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.feedback %}
+                          {{ complaint.feedback }}
+                        {% elif complaint.status == 'Closed' %}
+                          <form method="post" action="{% url 'submit_feedback' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="complaint_id" value="{{ complaint.complaint_id }}" />
+                            <textarea name="feedback" rows="3" cols="30" placeholder="Enter your feedback here..."></textarea>
+                            <button type="submit">Submit Feedback</button>
+                          </form>
+                        {% else %}
+                          Feedback can be given once the complaint has been closed.
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.status == 'Closed' and complaint.rating %}
+                          <form method="post" action="{% url 'reopen_complaint' complaint.complaint_id %}">
+                            {% csrf_token %}
+                            <button type="submit">Reopen Complaint</button>
+                          </form>
+                        {% else %}
+                          To reopen a closed complaint, please give rating and feedback
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.attachments %}
+                          <a href="{{ complaint.attachments.url }}">Download</a>
+                        {% else %}
+                          None
+                        {% endif %}
+                      </td>
+                      <td>{{ complaint.ward.ward_name }}</td>
+                      <td>{{ complaint.address }}</td>
+                      <td>{{ complaint.peth.peth_name }}</td>
+                      <td>{{ complaint.gis }}</td>
+                      <td>{{ complaint.pincode.pincode }}</td>
+                      <td>{{ complaint.department.department_name }}</td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <td colspan="20">No data available</td>
+                {% endif %}
               </tbody>
             </table>
-            <div>
-              {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>
-              {% endif %}
-              {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>
-              {% endif %}
+            <div class="pagination">
+              <span class="step-links">
+                  {% if page_obj.has_previous %}
+                      <a href="?page={{ page_obj.previous_page_number }}&form-page={{ form_histories.number }}">previous</a>
+                  {% endif %}
+                  <span class="current">
+                      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                  </span>
+                  {% if page_obj.has_next %}
+                      <a href="?page={{ page_obj.next_page_number }}&form-page={{ form_histories.number }}">next</a>
+                  {% endif %}
+              </span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <div id="my-complaints" class="content-section active" style="display: none;">
+      <div class="container">
+        <div class="pending-complaints-container">
+            <h3>Pending Complaints</h3>
+            <div class="pending-complaints-scroll">
+                {% for complaint in pending_complaints_list_user %}
+                    <div class="box" style="width: 100%;">
+                        <p><strong>Subject:</strong> {{ complaint.subject }}</p>
+                        <p><strong>Description:</strong> {{ complaint.description }}</p>
+                        <p><strong>Type:</strong> {{ complaint.complaint_type_id.complaint_type }}</p>
+                        <p><strong>Subtype:</strong> {{ complaint.complaint_sub_type_id.complaint_sub_type }}</p>
+                        <p><strong>Creation Date:</strong> {{ complaint.registration_date|date:"Y-m-d" }}</p>
+                        {% if complaint.expected_completion_date %}
+                          <p><strong>Expected Completion Date:</strong> {{ complaint.expected_completion_date|date:"Y-m-d" }}</p>
+                        {% else %}
+                        <p><strong>Expected Completion Date:</strong> Yet to be assigned</p>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p>No pending complaints.</p>
+                {% endfor %}
+            </div>
+        </div>
+      </div>
+      <div class="container">
+        <button id="export-pdf" class="exportbt">Export to PDF</button>
+        <select id="status-filter-2" onchange="handleStatusChange(this.value)">
+          <option value="All">All</option>
+          <option value="Pending">Pending</option>
+          <option value="Closed">Closed</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <div class="property-box">
+          <div class="scrollable-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>User</th>
+                  <th>Registration Date</th>
+                  <th>Expected Completion Date</th>
+                  <th>Complaint Type</th>
+                  <th>Complaint Sub Type</th>
+                  <th>Description</th>
+                  <th>Subject</th>
+                  <th>Status</th>
+                  <th>Completion Date</th>
+                  <th>Rating</th>
+                  <th>Feedback</th>
+                  <th>Reopen</th>
+                  <th>Attachments</th>
+                  <th>Ward</th>
+                  <th>Address</th>
+                  <th>Peth</th>
+                  <th>GIS</th>
+                  <th>Pincode</th>
+                  <th>Department</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if page_obj_all %}
+                  {% for complaint in page_obj_all %}
+                    <tr>
+                      <td>{{ complaint.complaint_id }}</td>
+                      <td>{{ complaint.user }}</td>
+                      <td>{{ complaint.registration_date }}</td>
+                      {% if complaint.expected_completion_date %}
+                        <td>{{ complaint.expected_completion_date }}</td>
+                      {% else %}
+                        <td>Expected Completion Date yet to be assigned</td>
+                      {% endif %}
+                      <td>{{ complaint.complaint_type_id.complaint_type }}</td>
+                      <td>{{ complaint.complaint_sub_type_id.complaint_sub_type }}</td>
+                      <td>{{ complaint.description }}</td>
+                      <td>{{ complaint.subject }}</td>
+                      <td>{{ complaint.status }}</td>
+                      {% if complaint.completion_date %}
+                        <td>{{ complaint.completion_date }}</td>
+                      {% elif complaint.status != 'Closed' %}
+                        <td>Complaint yet to be closed</td>
+                      {% endif %}
+                      <td>
+                        {% if complaint.rating %}
+                          {% for star in 5|get_range %}
+                            <span class="star" {% if forloop.counter <= complaint.rating %}style="color: rgb(255, 255, 0)"{% endif %}>&#9733;</span>
+                          {% endfor %}
+                        {% elif complaint.status == 'Closed' %}
+                          {% for star in 5|get_range %}
+                            <span class="star" data-index="{{ forloop.counter }}" data-complaint-id="{{ complaint.complaint_id }}">&#9733;</span>
+                          {% endfor %}
+                        {% else %}
+                          Rating can be given once the complaint has been closed.
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.feedback %}
+                          {{ complaint.feedback }}
+                        {% elif complaint.status == 'Closed' %}
+                          <form method="post" action="{% url 'submit_feedback' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="complaint_id" value="{{ complaint.complaint_id }}" />
+                            <textarea name="feedback" rows="3" cols="30" placeholder="Enter your feedback here..."></textarea>
+                            <button type="submit">Submit Feedback</button>
+                          </form>
+                        {% else %}
+                          Feedback can be given once the complaint has been closed.
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.status == 'Closed' and complaint.rating %}
+                          <form method="post" action="{% url 'reopen_complaint' complaint.complaint_id %}">
+                            {% csrf_token %}
+                            <button type="submit">Reopen Complaint</button>
+                          </form>
+                        {% else %}
+                          To reopen a closed complaint, please give rating and feedback
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if complaint.attachments %}
+                          <a href="{{ complaint.attachments.url }}">Download</a>
+                        {% else %}
+                          None
+                        {% endif %}
+                      </td>
+                      <td>{{ complaint.ward.ward_name }}</td>
+                      <td>{{ complaint.address }}</td>
+                      <td>{{ complaint.peth.peth_name }}</td>
+                      <td>{{ complaint.gis }}</td>
+                      <td>{{ complaint.pincode.pincode }}</td>
+                      <td>{{ complaint.department.department_name }}</td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <td colspan="20">No data available</td>
+                {% endif %}
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span class="step-links">
+                  {% if page_obj_all.has_previous %}
+                      <a href="?page={{ page_obj_all.previous_page_number }}&form-page={{ form_histories.number }}">previous</a>
+                  {% endif %}
+                  <span class="current">
+                      Page {{ page_obj_all.number }} of {{ page_obj_all.paginator.num_pages }}.
+                  </span>
+                  {% if page_obj_all.has_next %}
+                      <a href="?page={{ page_obj_all.next_page_number }}&form-page={{ form_histories.number }}">next</a>
+                  {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="box" style="width: 48%; padding: 50px;">
+          <h2>Complaints Overview</h2>
+          <ul>
+            <li>Total Complaints: {{ all_complaints_user }}</li>
+            <li>Resolved Complaints: {{ resolved_complaints_user }}</li>
+            <li>Pending Complaints: {{ pending_complaints_user }}</li>
+            <li>Rejected Complaints: {{ rejected_complaints_user }}</li>
+          </ul>
+          <br/>
+          <h3>Most Common Complaint Types</h3>
+          <ul>
+              {% for type in top_complaint_types_user %}
+              <li>{{ type.complaint_type_id__complaint_type }}: {{ type.count }}</li>
+              {% endfor %}
+          </ul>
+          <br/>
+          <h3>Complaint Trends by Month</h3>
+          <p>Average Resolution Time: {{ average_resolution_time_user.average }}</p>
+          <ul>
+              {% for month in monthly_complaints_user %}
+              <li>{{ month.month|date:"M Y" }}: {{ month.count }}</li>
+              {% endfor %}
+          </ul>
+        </div>
+        <div class="box" style="width: 48%">
+          <div id="complaintStatusPieChartUser"></div>
+        </div>
+        <div class="box" style="width: 100%;">
+          <div id="complaintTypeSubtypeBarChartUser"></div>
         </div>
       </div>
     </div>
@@ -236,5 +475,100 @@
           })
       })
     })
+  </script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script type="text/javascript">
+    var data = [{
+        values: {{ counts|safe }},
+        labels: {{ statuses|safe }},
+        type: 'pie'
+    }];
+
+    var layout = {
+        height: 400,
+        width: 'auto',
+        title: 'Complaint Status Distribution'
+    };
+
+    Plotly.newPlot('complaintStatusPieChart', data, layout);
+  </script>
+  <script type="text/javascript">
+    var xValues = {{ bar_chart_data.types|safe }};
+    var barData = [];
+
+    {% for subtype, subtype_counts in bar_chart_data.subtypes.items %}
+      barData.push({
+          x: xValues,
+          y: {{ subtype_counts|safe }},
+          name: '{{ subtype }}',
+          type: 'bar',
+      });
+    {% endfor %}
+
+    var layout = {
+        autosize: true,
+        width: 1800,
+        height: 600,
+        barmode: 'stack',
+        title: 'Complaint Counts by Type and Subtype',
+        xaxis: {title: 'Complaint Types'},
+        yaxis: {title: 'Count'},
+        margin: {
+          l: 40,
+          r: 40,
+          b: 150,
+          t: 40,
+          pad: 4
+        },
+    };
+
+    Plotly.newPlot('complaintTypeSubtypeBarChart', barData, layout);
+  </script>
+  <script type="text/javascript">
+    var data = [{
+        values: {{ counts_user|safe }},
+        labels: {{ statuses_user|safe }},
+        type: 'pie'
+    }];
+
+    var layout = {
+        height: 400,
+        width: 'auto',
+        title: 'Complaint Status Distribution'
+    };
+
+    Plotly.newPlot('complaintStatusPieChartUser', data, layout);
+  </script>
+  <script type="text/javascript">
+    var xValues = {{ bar_chart_data_user.types|safe }};
+    var barDataUser = [];
+
+    {% for subtype, subtype_counts in bar_chart_data_user.subtypes.items %}
+      barDataUser.push({
+          x: xValues,
+          y: {{ subtype_counts|safe }},
+          name: '{{ subtype }}',
+          type: 'bar',
+      });
+    {% endfor %}
+
+    var layout = {
+        autosize: true,
+        width: 1800,
+        height: 600,
+        barmode: 'stack',
+        title: 'Complaint Counts by Type and Subtype',
+        xaxis: {title: 'Complaint Types'},
+        yaxis: {title: 'Count'},
+        margin: {
+          l: 40,
+          r: 40,
+          b: 150,
+          t: 40,
+          pad: 4
+        },
+    };
+
+    Plotly.newPlot('complaintTypeSubtypeBarChartUser', barDataUser, layout);
   </script>
 {% endblock %}

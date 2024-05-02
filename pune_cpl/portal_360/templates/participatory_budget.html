@@ -1,0 +1,498 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Participatory Budget | {{ DASHBOARD_NAME }}
+{% endblock %}
+
+{% block stylesheets %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/participatoryBudgetStyle.css' %}" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block navigation %}
+  <div class="top-bar-menu-item-div" id="menu-home">
+    <a href="{% url 'home' %}" class="top-bar-menu-item">Home</a>
+  </div>
+  <div class="top-bar-menu-item-div active" id="menu-applications">
+    <a href="{% url 'profile' %}" class="top-bar-menu-item" data-target="applicationsContent">Participatory Budget</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% load custom_filters %}
+  <div class="content-container" id="pb-content">
+    <div class="subheading" style="width: 100%">
+      <div class="text-container active" id="overview-header" data-target="overview">
+        <h3>OVERVIEW</h3>
+        <div class="underline"></div>
+      </div>
+      <div class="text-container" id="project-details-header" data-target="project-details">
+        <h3>PROJECT DETAILS</h3>
+        <div class="underline"></div>
+      </div>
+      <div class="text-container" id="suggest-project-header" data-target="suggest-project">
+        <h3>SUGGEST A PROJECT</h3>
+        <div class="underline"></div>
+      </div>
+    </div>
+    <div id="overview" class="content-section active">
+      <div class="container">
+        <h3>Project Filters</h3>
+        <div class="box" style="width: 100%;">
+          <form method="GET" action="">
+            <label for="id_department">Department:</label>
+            <select name="department_id" id="id_department" class="select2" multiple>
+              <option value="">All Departments</option>
+              {% for dept in form.department_id.field.queryset %}
+                <!-- prettier-ignore -->
+                {% if dept.department_id|stringformat:'s' in form.department_id.value|stringformat:'s' %}
+                <option value="{{ dept.department_id }}" selected>{{ dept.department_name }}</option>
+              {% else %}
+                <option value="{{ dept.department_id }}">{{ dept.department_name }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            {% if field.department_id.errors %}
+              {% for error in field.department_id.errors %}
+                <div class="error">{{ error }}</div>
+              {% endfor %}
+            {% endif %}
+
+            <label for="id_ward_name">Ward Name:</label>
+            <select name="ward_id" id="id_ward_name" class="select2" multiple>
+              <option value="">All Wards</option>
+              {% for ward in form.ward_id.field.queryset %}
+                <!-- prettier-ignore -->
+                {% if ward.ward_id|stringformat:'s' in form.ward_id.value|stringformat:'s' %}
+                <option value="{{ ward.ward_id }}" selected>{{ ward.ward_name }}</option>
+              {% else %}
+                <option value="{{ ward.ward_id }}">{{ ward.ward_name }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            {% if field.ward_id.errors %}
+              {% for error in field.ward_id.errors %}
+                <div class="error">{{ error }}</div>
+              {% endfor %}
+            {% endif %}
+
+            <label for="id_project_name">Project Name:</label>
+            <select name="project_id" id="id_project_name" class="select2" multiple>
+              <option value="">All Projects</option>
+              {% for project in form.project_id.field.queryset %}
+                <!-- prettier-ignore -->
+                {% if project.project_id|stringformat:'s' in form.project_id.value|stringformat:'s' %}
+                <option value="{{ project.project_id }}" selected>{{ project.project_title }}</option>
+              {% else %}
+                <option value="{{ project.project_id }}">{{ project.project_title }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+            {% if field.project_id.errors %}
+              {% for error in field.project_id.errors %}
+                <div class="error">{{ error }}</div>
+              {% endfor %}
+            {% endif %}
+
+            <label for="id_min_timestamp">Min Timestamp:</label>
+            <input type="date" name="min_timestamp" id="id_min_timestamp" value="{{ form.min_timestamp.value|default_if_none:'' }}" />
+
+            <label for="id_max_timestamp">Max Timestamp:</label>
+            <input type="date" name="max_timestamp" id="id_max_timestamp" value="{{ form.max_timestamp.value|default_if_none:'' }}" />
+
+            <button type="submit">Apply Filters</button>
+            <button type="button" onclick="clearFilters()">Clear Selection</button>
+          </form>
+        </div>
+      </div>
+      <div class="container">
+        <div class="box-card" style="background-color: rgba(133, 42, 56, 1);">
+          <span class="box-card-metric">{{ total_projects }}</span>
+          <div class="box-card-label">
+            <p>Total Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(153, 255, 153, 1);">
+          <span class="box-card-metric">{{ approved_projects }}</span>
+          <div class="box-card-label">
+            <p>Approved Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(255, 153, 153, 1);">
+          <span class="box-card-metric">{{ rejected_projects }}</span>
+          <div class="box-card-label">
+            <p>Rejected Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(255, 255, 153, 1);">
+          <span class="box-card-metric">{{ ongoing_projects }}</span>
+          <div class="box-card-label">
+            <p>Ongoing Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: rgba(153, 204, 255, 1);">
+          <span class="box-card-metric">{{ completed_projects }}</span>
+          <div class="box-card-label">
+            <p>Completed Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: #e3435a; width: calc(25% - 20px);">
+          <span class="box-card-metric">{{ total_budget }}</span>
+          <div class="box-card-label">
+            <p>Total Budget</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: #e3435a; width: calc(25% - 20px);">
+          <span class="box-card-metric">{{ total_votes }}</span>
+          <div class="box-card-label">
+            <p>Total Votes</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: #e3435a; width: calc(25% - 20px);">
+          <span class="box-card-metric">{{ active_projects }}</span>
+          <div class="box-card-label">
+            <p>Active Projects</p>
+          </div>
+        </div>
+        <div class="box-card" style="background-color: #e3435a; width: calc(25% - 20px);">
+          <span class="box-card-metric">{{ user_projects }}</span>
+          <div class="box-card-label">
+            <p>Your Projects</p>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="box" style="width: 100%;">
+          <div id="department-chart"></div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="box" style="width: 48%;">
+          <div id="voting-percentage-chart"></div>
+        </div>
+        <div class="box" style="width: 48%;">
+          <div id="budget-pie-chart"></div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="box" style="width: 48%;">
+          <div id="satisfaction-chart"></div>
+        </div>
+        <div class="box" style="width: 48%;">
+          <div id="age-distribution-chart"></div>
+        </div>
+      </div>
+      <div class="container">
+        <h3>Projects Suggested by the Citizen</h3>
+        <div class="property-box">
+          <div class="scrollable-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Project ID</th>
+                  <th>Submission Timestamp</th>
+                  <th>Project Category</th>
+                  <th>Project Title</th>
+                  <th>Description</th>
+                  <th>Department</th>
+                  <th>Ward Name</th>
+                  <th>Cost Estimate</th>
+                  <th>Allocated Budget</th>
+                  <th>Amount Spent</th>
+                  <th>Priority Level</th>
+                  <th>Requested Deadline</th>
+                  <th>Estimated Deadline</th>
+                  <th>Final Implementation Status</th>
+                  <th>Officer Remarks</th>
+                  <th>Total Votes Received</th>
+                  <th>Assigned Officer</th>
+                  <th>Assigned Officer ID</th>
+                  <th>Latitude</th>
+                  <th>Longitude</th>
+                  <th>Supporting Documents/Attachments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for project in page_obj %}
+                  <tr>
+                    <td>{{ project.project_id }}</td>
+                    <td>{{ project.submission_timestamp }}</td>
+                    <td>{{ project.project_category.project_category_name }}</td>
+                    <td>{{ project.project_title }}</td>
+                    <td>{{ project.description }}</td>
+                    <td>{{ project.department.department_name }}</td>
+                    <td>{{ project.ward_id.ward_name }}</td>
+                    <td>{{ project.cost_estimate.cost_estimate_range }}</td>
+                    <td>{{ project.allocated_budget }}</td>
+                    <td>{{ project.amount_spent }}</td>
+                    <td>{{ project.priority_level }}</td>
+                    <td>{{ project.requested_deadline }}</td>
+                    <td>{{ project.estimated_deadline }}</td>
+                    <td>{{ project.final_implementation_status }}</td>
+                    <td>{{ project.officer_remarks }}</td>
+                    <td>{{ project.total_votes_received }}</td>
+                    <td>{{ project.assigned_officer }}</td>
+                    <td>{{ project.assigned_officer_id }}</td>
+                    <td>{{ project.gis_id.latitude }}</td>
+                    <td>{{ project.gis_id.longitude }}</td>
+                    <td>{{ project.supporting_documents }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span class="step-links">
+                {% if page_obj.has_previous %}
+                  <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                {% endif %}
+                <span class="current">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.</span>
+                {% if page_obj.has_next %}
+                  <a href="?page={{ page_obj.next_page_number }}">next</a>
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <h3>Approved and Ongoing Projects</h3>
+        <div class="property-box">
+          <div class="scrollable-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Project ID</th>
+                  <th>Submission Timestamp</th>
+                  <th>Project Category</th>
+                  <th>Project Title</th>
+                  <th>Description</th>
+                  <th>Department</th>
+                  <th>Ward Name</th>
+                  <th>Cost Estimate</th>
+                  <th>Allocated Budget</th>
+                  <th>Amount Spent</th>
+                  <th>Priority Level</th>
+                  <th>Requested Deadline</th>
+                  <th>Estimated Deadline</th>
+                  <th>Final Implementation Status</th>
+                  <th>Officer Remarks</th>
+                  <th>Total Votes Received</th>
+                  <th>Assigned Officer</th>
+                  <th>Assigned Officer ID</th>
+                  <th>Latitude</th>
+                  <th>Longitude</th>
+                  <th>Supporting Documents/Attachments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for project in page_obj_filtered %}
+                  <tr>
+                    <td>{{ project.project_id }}</td>
+                    <td>{{ project.submission_timestamp }}</td>
+                    <td>{{ project.project_category.project_category_name }}</td>
+                    <td>{{ project.project_title }}</td>
+                    <td>{{ project.description }}</td>
+                    <td>{{ project.department.department_name }}</td>
+                    <td>{{ project.ward_id.ward_name }}</td>
+                    <td>{{ project.cost_estimate.cost_estimate_range }}</td>
+                    <td>{{ project.allocated_budget }}</td>
+                    <td>{{ project.amount_spent }}</td>
+                    <td>{{ project.priority_level }}</td>
+                    <td>{{ project.requested_deadline }}</td>
+                    <td>{{ project.estimated_deadline }}</td>
+                    <td>{{ project.final_implementation_status }}</td>
+                    <td>{{ project.officer_remarks }}</td>
+                    <td>{{ project.total_votes_received }}</td>
+                    <td>{{ project.assigned_officer }}</td>
+                    <td>{{ project.assigned_officer_id }}</td>
+                    <td>{{ project.gis_id.latitude }}</td>
+                    <td>{{ project.gis_id.longitude }}</td>
+                    <td>{{ project.supporting_documents }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span class="step-links">
+                {% if page_obj_filtered.has_previous %}
+                  <a href="?page2={{ page_obj_filtered.previous_page_number }}">previous</a>
+                {% endif %}
+                <span class="current">Page {{ page_obj_filtered.number }} of {{ page_obj_filtered.paginator.num_pages }}.</span>
+                {% if page_obj_filtered.has_next %}
+                  <a href="?page2={{ page_obj_filtered.next_page_number }}">next</a>
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="suggest-project" class="content-section active" style="display: none;">
+      <div class="container" style="flex-wrap: wrap;
+                                    justify-content: center;
+                                    flex-direction: column;
+                                    align-content: center;
+                                    align-items: center;
+                                    width: auto;">
+        <h2>Suggest a Project</h2>
+        <div class="box" style="width: 100%;">
+          <form method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column;">
+            {% csrf_token %}
+            {{ project_suggestion_form.non_field_errors }}
+            {% for field in project_suggestion_form %}
+              <div class="form-group">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}
+                  {% for error in field.errors %}
+                    <div class="error">{{ error }}</div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            {% endfor %}
+            <button type="submit">Submit Complaint</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div id="project-details" class="content-section active" style="display: none;">
+      <div class="container" style="flex-wrap: wrap;
+                                    justify-content: center;
+                                    align-content: center;
+                                    flex-direction: column;
+                                    align-items: center;">
+        <label for="id_project_select">Select Project:</label>
+        <select name="project" id="id_project_select" class="select2">
+          <option value="">--- Select Project ---</option>
+          {% for project in projects %}
+            <option value="{{ project.project_id }}">{{ project.project_title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="container">
+        <div id="project_details_container" style="margin-top: 20px; display: none;"></div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/participatory_budget.js' %}" type="text/javascript"></script>
+  <script>
+    function clearFilters() {
+      $('#id_department').val(null).trigger('change')
+      $('#id_ward_name').val(null).trigger('change')
+      $('#id_project_name').val(null).trigger('change')
+      document.getElementById('id_min_timestamp').value = ''
+      document.getElementById('id_max_timestamp').value = ''
+    }
+  </script>
+  <script>
+    $(document).ready(function () {
+      $('.select2').select2({
+        placeholder: 'Select an option',
+        allowClear: true
+      })
+    })
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var data = {{ stacked_bar_data|safe }}
+
+      var layout = {
+        barmode: 'stack',
+        width: 1800,
+        height: 600,
+        title: 'Department Wise Project Distribution',
+        xaxis: { title: 'Number of Projects' },
+        yaxis: { title: 'Department' },
+        margin: { l: 200, r: 100, t: 100, b: 100 },
+        legend: { x: 1, y: 1, traceorder: 'normal', orientation: 'v' }
+      }
+    
+      Plotly.newPlot('department-chart', data, layout)
+    })
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var votingData = {{ plotly_voting_data|safe }};
+        
+        var votingLayout = {
+            width: 850,
+            height: 500,
+            title: 'Voting Percentage by Department',
+            xaxis: {title: 'Department'},
+            yaxis: {title: 'Percentage', tickformat: ',.2f'},
+            margin: {l: 100, r: 100, t: 100, b: 100},
+        };
+
+        Plotly.newPlot('voting-percentage-chart', votingData, votingLayout);
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var budgetData = {{ plotly_budget_data|safe }};
+        
+        var budgetLayout = {
+            title: 'Department Wise Budget Breakdown',
+            width: 850,
+            height: 500,
+        };
+
+        Plotly.newPlot('budget-pie-chart', budgetData, budgetLayout);
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var ageData = {{ plotly_age_data|safe }};
+        
+        var layout = {
+            title: 'Citizen Age Distribution by Family Size',
+            barmode: 'group',
+            xaxis: {title: 'Age Group'},
+            yaxis: {title: 'Count of Citizens'},
+            margin: {l: 50, r: 50, t: 50, b: 50},
+            legend: {x: 0, y: 1.2, orientation: 'h'},
+            width: 850,
+            height: 500,
+        };
+
+        Plotly.newPlot('age-distribution-chart', ageData, layout);
+    });
+  </script>
+  <script>
+    $(document).ready(function() {
+        $('#id_project_select').change(function() {
+            var projectId = $(this).val();
+            if (projectId) {
+                $.ajax({
+                    url: '{% url 'get-project-details' %}',
+                    data: { 'project_id': projectId, 'format': 'html' },
+                    success: function(data) {
+                        $('#project_details_container').html(data).show();
+                    },
+                    error: function() {
+                        $('#project_details_container').html('<p>Error loading project details.</p>').show();
+                    }
+                });
+            } else {
+                $('#project_details_container').hide();
+            }
+        });
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var satisfactionData = [{{ satisfaction_data|safe }}];
+
+        var layout = {
+            title: 'Citizen Satisfaction Rate',
+            width: 850,
+            height: 500,
+        };
+
+        Plotly.newPlot('satisfaction-chart', satisfactionData, layout);
+    });
+    </script>
+{% endblock %}

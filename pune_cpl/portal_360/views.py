@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect
 from .application_views.property_tax_view import *
 from .application_views.water_billing_view import *
 from .application_views.cms_view import *
+from .application_views.participatory_budget_view import *
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from .forms import CustomLoginForm, OTPForm, CustomUserCreationForm, ResetPasswordForm, CustomUserEditForm

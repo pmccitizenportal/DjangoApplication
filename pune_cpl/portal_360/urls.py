@@ -21,4 +21,6 @@ urlpatterns = [ path('', views.home_redirect, name='home'),
                 path('get-peths-for-ward/<int:ward_id>/', views.get_peths_for_ward, name='get_peths_for_ward'),
                 path('submit-rating/<int:complaint_id>/', views.submit_rating, name='submit_rating'),
                 path('submit-feedback/', views.submit_feedback, name='submit_feedback'),
-                path('reopen-complaint/<int:complaint_id>/', views.reopen_complaint, name='reopen_complaint'),]
+                path('reopen-complaint/<int:complaint_id>/', views.reopen_complaint, name='reopen_complaint'),
+                path('participatory_budget/', views.participatory_budget_view, name='participatory_budget'),
+                path('get-project-details/', views.get_project_details, name='get-project-details')]

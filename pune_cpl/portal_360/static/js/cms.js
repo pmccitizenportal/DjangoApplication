@@ -56,7 +56,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
-    document.getElementById('status-filter').addEventListener('change', function () {
+    var statusDropdown = document.getElementById('status-filter');
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var status = urlParams.get('status');
+    if (status && statusDropdown) {
+        statusDropdown.value = status;
+    }
+
+    statusDropdown.addEventListener('change', function () {
         window.location.href = `?status=${this.value}`;
     });
+
+    var statusDropdown2 = document.getElementById('status-filter-2');
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var status = urlParams.get('status');
+    if (status && statusDropdown) {
+        statusDropdown2.value = status;
+    }
+
+    var urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('active_tab');
+
+    if (activeTab) {
+        document.querySelectorAll('.text-container').forEach(tab => {
+            tab.classList.remove('active');
+            document.getElementById(tab.getAttribute('data-target')).style.display = 'none';
+        });
+
+        document.getElementById(activeTab + '-header').classList.add('active');
+        document.getElementById(activeTab).style.display = 'flex';
+    }
 });
+
+function handleStatusChange(status) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('status', status);
+
+    const activeTab = document.querySelector('.text-container.active').getAttribute('data-target');
+    url.searchParams.set('active_tab', activeTab);
+
+    window.location.href = url.toString();
+}

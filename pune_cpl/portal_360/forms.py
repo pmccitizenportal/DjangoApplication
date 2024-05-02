@@ -9,7 +9,7 @@ from django.db.models import JSONField
 from .common_data import NATIONALITIES, COMPLAINT_SUBTYPE_CHOICES, COMPLAINT_TYPE_CHOICES
 from .validators import *
 from .application_models.master_tables import *
-from .models import CustomUser, CMSComplaintType, CMSComplaintSubType, CMSComplaints
+from .models import *
 
 User = get_user_model()
 
@@ -324,3 +324,60 @@ class ComplaintForm(forms.Form):
         if sub_type_id and not CMSComplaintSubType.objects.filter(complaint_type_id=type_id, pk=sub_type_id.pk).exists():
             raise forms.ValidationError("Select a valid choice. That choice is not one of the available choices.")
         return sub_type_id
+
+class PBProjectFilterForm(forms.Form):
+    department_id = forms.ModelMultipleChoiceField(
+        queryset=Department.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'select2', 'style': 'width: 100%'}),
+        label="Department"
+    )
+    ward_id = forms.ModelMultipleChoiceField(
+        queryset=Ward.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'select2', 'style': 'width: 100%'}),
+        label="Ward"
+    )
+    project_id = forms.ModelMultipleChoiceField(
+        queryset=PBProjects.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'select2', 'style': 'width: 100%'}),
+        label="Project"
+    )
+    min_timestamp = forms.DateField(
+        required=False, 
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    max_timestamp = forms.DateField(
+        required=False, 
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    
+class PBProjectSuggestionForm(forms.ModelForm):
+    class Meta:
+        model = PBProjects
+        fields = ['project_category', 'project_title', 'description', 'ward', 'cost_estimate', 'priority_level', 'requested_deadline', 'supporting_documents']
+        widgets = {
+            'project_category': forms.Select(attrs={'class': 'form-control'}),
+            'ward': forms.Select(attrs={'class': 'form-control'}),
+            'cost_estimate': forms.Select(attrs={'class': 'form-control'}),
+            'priority_level': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 5}),
+            'requested_deadline': DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'supporting_documents': forms.FileInput(attrs={'class': 'form-control'}),
+            'project_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+        }
+        labels = {
+            'project_category': 'Project Category',
+            'project_title': 'Project Title',
+            'description': 'Description',
+            'ward': 'Ward Name',
+            'cost_estimate': 'Cost Estimate',
+            'priority_level': 'Priority Level (1-5)',
+            'requested_deadline': 'Requested Deadline',
+            'supporting_documents': 'Attach Supporting Documents',
+        }
+        help_texts = {
+            'project_title': 'Enter the title of the project.',
+            'description': 'Provide a detailed description of the project.',
+        }
